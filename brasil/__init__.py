@@ -5,13 +5,29 @@ from time import sleep
 
 from playwright.sync_api import sync_playwright, Request
 
+def filter_error(txt: str):
+    txt = txt.lower()
+    if 'Esta instrução é exclusiva para título registrado'.lower() in txt:
+        return 'titulo ja baixado'
+    else:
+        return 'erro'
+
+def message_return(status: str, message: str) -> dict[str, str]:
+    return {'status': status, 'message': message}
+
 class Brasil:
-    def __init__(self, user: str, password: str):
+    def __init__(self, user: str, password: str, echo: bool = True, headless: bool = False):
         self.logged = False
         self.p_context = sync_playwright()
         self._user = user
         self._password = password
+        self._headless = headless
+        self._echo = echo
     
+    def _print(self, message):
+        if self._echo:
+            print(message)
+            
     def _refresh_session(self, request: Request):
         if 'MODAL_RENOVACAO_SESSAO' in request.url:
             try:
@@ -30,12 +46,12 @@ class Brasil:
     def login(self):
         # Cria uma nova página
         self._playwright = self.p_context.start()
-        self._browser = self._playwright.chromium.launch(headless=False)
+        self._browser = self._playwright.chromium.launch(headless=self._headless)
         self._page = self._browser.new_page()
         
         # Cria um Listener que verifica quando renovar a sessão
         self._page.on("request", self._refresh_session)
-        self._page.goto("https://autoatendimento.bb.com.br/apf-apj-autoatendimento/")
+        self._page.goto("https://autoatendimento.bb.com.br/apf-apj-acesso/?0=[&1=o&2=b&3=j&4=e&5=c&6=t&7=%20&8=O&9=b&10=j&11=e&12=c&13=t&14=]&v=2.61.6&t=1")
         
         # Insere as informações do usuário
         self._page.locator('#identificador').fill(self._user)
@@ -55,7 +71,11 @@ class Brasil:
 
     def consult_boleto(self, key: str, reset: bool = True) -> Mapping[str, Union[str, float, datetime]]:
         if not key:
-            self.close('key cannot be empity')
+            return dict(
+                nosso_numero = key,
+                status = 'vazio',
+            )
+            # self.close('key cannot be empity')
         elif not self.logged:
             # Garante que o login será feio
             # Mesmo que não explicitamente
@@ -92,13 +112,13 @@ class Brasil:
                 frame.locator(Elemento.id_btn_ok).click()
             elif btn_error.count() > 0:
                 btn_error.click()
-                print('Erro ao tentar utilizar o banco')
-                return
+                return dict(
+                    nosso_numero = key,
+                    status = 'sem_registro',
+                )
             elif content_page.count() > 5 and agenc_inp.count() == 0:
                 break
-        
-        dados = {}
-        
+
         content_page = content_page.all_inner_texts()
         
         dados = dict(
@@ -155,10 +175,12 @@ class Brasil:
                 frame.locator(Elemento.id_btn_ok).click()
             elif btn_nova.count() > 0:
                 btn_nova.click()
-                return True
+                self._print('boleto baixado')
+                return message_return(True, 'boleto baixado')
             elif btn_voltar.count() > 0:
                 btn_voltar.click()
-                return False
+                self._print('boleto sem registro')
+                return message_return(False, 'boleto sem registro')
 
     def descount_boleto(self, key: str, value: Union[float, int, str], disc_value: Union[float, int, str]) -> bool:
         data = self.consult_boleto(key, False)
@@ -170,23 +192,24 @@ class Brasil:
         reset = False
         
         if data['status'] != "normal":
-            mensagem_retorno = f"Boleto {data['status']}"
-            print(mensagem_retorno)
+            mensagem_retorno = f"boleto {data['status']}"
+            self._print(mensagem_retorno)
             reset = True
         elif data['valor_titulo'] != value:
-            mensagem_retorno = f"Valor informado: {value} | Valor localizado: {data['valor_titulo']}"
-            print(mensagem_retorno)
+            mensagem_retorno = f"boleto com valor divergente"
+            self._print(f"valor informado: {value} | valor localizado: {data['valor_titulo']}")
             reset = True
             
         if reset:
             frame.locator(Elemento.id_btn_nova).click()
             frame.locator('select[name="tipoConsulta"]').select_option('HC07')
-            return False
+            return message_return(False, mensagem_retorno)
         
         key_span = frame.locator('#span1')
         while key_span.count() > 0:
             key_span.click()
-            frame.locator('#tr41 td a').click()
+            try: frame.locator('#tr41 td a').click()
+            except: pass
         
         abat_inp = frame.locator('#valorAbatimento')
         btn_new = frame.locator(Elemento.id_btn_nova)
@@ -204,8 +227,84 @@ class Brasil:
                 
             
         frame.locator('select[name="tipoConsulta"]').select_option('HC07')
-        return True
         
+        self._print('boleto abatido')
+        
+        return message_return(True, 'boleto abatido')
+        return {'status': True, 'message': 'boleto abatido'}
+        message = frame.locator('.textoErro').all_inner_texts()[-1]
+
+    def register_boleto(self, key: str):
+        if not key: # Verifica se a chave ou o valor não são compos vazios
+            self.close('key and value cannot be empity')
+        elif not self.logged: # Realiza o login caso o mesmo não tenha sido feito
+            self.login()
+        
+        self._page.goto(self.url_base + '~2Fcobranca~2FHC32-0.bb')
+        
+        # Garante que a página será carregada
+        self._page.wait_for_selector(Elemento.id_iframe)
+        frame = self._page.frame_locator(Elemento.id_iframe)
+        
+        if key.startswith('31'):
+            frame.locator('select[name=agenciaConta]').select_option('17/086') # boletos 31
+        elif key.startswith('32'):
+            frame.locator('select[name=agenciaConta]').select_option('17/116') # boletos 32
+        
+        frame.locator('select[name=tpModalidade]').select_option('0_COBRANCA SIMPLES')
+        
+        frame.locator(Elemento.id_btn_ok)
+        
+        
+        # campos
+        
+        # chave do boleto
+        if key.startswith('31'):
+            frame.locator('input[name=nossoNumeroCompl]').fill(key.replace('3105655', ''))
+        elif key.startswith('32'):
+            frame.locator('input[name=nossoNumeroCompl]').fill(key.replace('3266393', ''))
+        
+        # data de emissao (padrão para hoje)
+        frame.locator('input[name=dataEmissaoF]').fill(datetime.today().strftime('%d%m%Y'))
+        
+        # data vencimento
+        frame.locator('input[name=dataVencimentoF]').fill('01122025')
+        
+        # valor do título
+        frame.locator('input[name=valorTitulo]').fill('15,80')
+        
+        # aceite
+        frame.locator('input[name=tipoAceite]').select_option('N')
+        
+        # valor abatimento
+        frame.locator('input[name=valorAbatimentoReg]').fill('')
+        
+        # especie do titulo
+        frame.locator('input[name=especieTitulo]').select_option('2')
+        
+        # numero do titulo (normalmente a referencia)
+        frame.locator('input[name=numeroTituloCedente]').fill('000123312-001')
+        
+        # numero do titulo (normalmente a referencia)
+        frame.locator('input[name=numeroTituloCedente]').fill('000123312-001')
+        
+        # campo de cpnj/cpf
+        radio_cliente = frame.locator('input[name=indicadorPessoa]')
+        if 'cnpj':
+            p = radio_cliente.all_inner_texts().index(' CNPJ ')
+            radio_cliente.nth(p).click()
+            frame.locator('input[name=cnpj]').fill('07991297000143')
+        elif 'cpf':
+            p = radio_cliente.all_inner_texts().index(' CPF ')
+            radio_cliente.nth(p).click()
+            frame.locator('input[name=cpf]').fill('02510848330')
+        
+        # nome do cliente
+        frame.locator('input[name=nomeSacado]').fill('Nome do cliente')
+        
+        
+        pass
+
     def close(self, raise_exception: Union[str, None] = None):
         if not self.logged:
             if raise_exception: raise Exception(raise_exception)
