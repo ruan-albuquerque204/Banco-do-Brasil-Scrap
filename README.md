@@ -8,7 +8,7 @@ Lib muito útil para empresas que não possuem acesso a API oficial.
 
 O projeto não está finalizado, e em breve irá fornecer um auxilio integral nos seus projetos.
 
-# Como roda a aplicação
+# Como rodar a aplicação
 
 No terminal, clone o projeto:
 ```
@@ -29,7 +29,7 @@ pip install -e "caminha/da/biblioteca/brasil"
 
 # Funcionalidades
 
-`bb = Brasil(usuario, senha, echo=True, headless=False)` - cria o nosso objeto inicial. Também é possivel utilizar com o comando `with`.
+`bb = Brasil(usuario, senha, echo=True, headless=True)` - cria o nosso objeto inicial. Também é possivel utilizar com o comando `with`.
 
 `bb.close` - desloga do banco e finaliza a janela aberta.
 

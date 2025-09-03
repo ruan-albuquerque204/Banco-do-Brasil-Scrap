@@ -7,7 +7,7 @@ setup(
     author='Ruan de Albuquerque Santos',
     author_email='ruanalbuquerque204@gmail.com',
     packages=find_packages(exclude=('examples*', 'tests*', 'venv')),
-    install_requires=['playwright'],
+    install_requires=['playwright', 'playwright-stealth'],
     include_package_data=True,
     zip_safe=False
 )
