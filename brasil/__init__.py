@@ -175,12 +175,14 @@ class Brasil:
                 return message_return(False, 'boleto sem registro')
 
     def descount_boleto(self, key: str, value: Union[float, int, str], disc_value: Union[float, int, str]) -> bool:
+        if not key or not value or not disc_value: # Verifica se a chave ou o valor não são compos vazios
+            self.close('key, value and descount cannot be empity')
+        
         if isinstance(value, (int, float)): value = Decimais(value).text
         if isinstance(disc_value, (int, float)): disc_value = Decimais(disc_value).text
         
         data = self.consult_boleto(key, False)
         
-        # self._page.frame_locator(Elemento.id_iframe)
         iframe = self._page.frame_locator(Elemento.id_iframe)
         reset = False
         
