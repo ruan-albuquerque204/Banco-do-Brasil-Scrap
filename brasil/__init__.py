@@ -82,14 +82,14 @@ class Brasil:
             
         # Garante que a página será carregada
         self._page.wait_for_selector(Elemento.id_iframe)
-        frame = self._page.frame_locator(Elemento.id_iframe)
+        iframe = self._page.frame_locator(Elemento.id_iframe)
         
-        frame.locator('select[name="tipoConsulta"]').select_option('HC07')
+        iframe.locator('select[name="tipoConsulta"]').select_option('HC07')
         
         
-        agenc_inp = frame.locator('#dependenciaOrigem')
-        btn_error = frame.locator(Elemento.id_btn_erro)
-        content_page = frame.locator('.tabelaTrsResposta tbody tr')
+        agenc_inp = iframe.locator('#dependenciaOrigem')
+        btn_error = iframe.locator(Elemento.id_btn_erro)
+        content_page = iframe.locator('.tabelaTrsResposta tbody tr')
         
         while True:
             while btn_error.count() == 0 and content_page.count() == 0 and agenc_inp.count() == 0:
@@ -97,11 +97,11 @@ class Brasil:
             
             if agenc_inp.count() > 0:
                 agenc_inp.fill('16047')
-                frame.locator('#numeroContratoOrigem').fill('110000')
+                iframe.locator('#numeroContratoOrigem').fill('110000')
                 # preechendo nosso número e valor do título
-                frame.locator('input[name="nossoNumero"]').fill(key)
+                iframe.locator('input[name="nossoNumero"]').fill(key)
                 # Botão de confirmar
-                frame.locator(Elemento.id_btn_ok).click()
+                iframe.locator(Elemento.id_btn_ok).click()
             elif btn_error.count() > 0:
                 btn_error.click()
                 return dict(
@@ -130,7 +130,7 @@ class Brasil:
         )
         
         if reset:
-            frame.locator(Elemento.id_btn_nova).click()
+            iframe.locator(Elemento.id_btn_nova).click()
         
         return dados
             
@@ -147,11 +147,11 @@ class Brasil:
         self._page.goto(url)
         
         self._page.wait_for_selector(Elemento.id_iframe)
-        frame = self._page.frame_locator(Elemento.id_iframe)
+        iframe = self._page.frame_locator(Elemento.id_iframe)
         
-        agenc_inp = frame.locator('#dependenciaOrigem')
-        btn_nova = frame.locator(Elemento.id_btn_nova)
-        btn_voltar = frame.locator(Elemento.id_btn_erro)
+        agenc_inp = iframe.locator('#dependenciaOrigem')
+        btn_nova = iframe.locator(Elemento.id_btn_nova)
+        btn_voltar = iframe.locator(Elemento.id_btn_erro)
         
         while True:
             while btn_nova.count() == 0 and btn_voltar.count() == 0 and agenc_inp.count() == 0:
@@ -159,12 +159,12 @@ class Brasil:
 
             if agenc_inp.count() > 0:
                 agenc_inp.fill('16047')
-                frame.locator('#numeroContratoOrigem').fill('110000')
+                iframe.locator('#numeroContratoOrigem').fill('110000')
                 
-                frame.locator('input[name="nossoNumero"]').fill(key)
-                frame.locator('input[name="valorTitulo"]').fill(value)
+                iframe.locator('input[name="nossoNumero"]').fill(key)
+                iframe.locator('input[name="valorTitulo"]').fill(value)
 
-                frame.locator(Elemento.id_btn_ok).click()
+                iframe.locator(Elemento.id_btn_ok).click()
             elif btn_nova.count() > 0:
                 btn_nova.click()
                 self._print('boleto baixado')
@@ -175,12 +175,13 @@ class Brasil:
                 return message_return(False, 'boleto sem registro')
 
     def descount_boleto(self, key: str, value: Union[float, int, str], disc_value: Union[float, int, str]) -> bool:
-        data = self.consult_boleto(key, False)
-        
         if isinstance(value, (int, float)): value = Decimais(value).text
         if isinstance(disc_value, (int, float)): disc_value = Decimais(disc_value).text
         
-        frame = self._page.frame_locator(Elemento.id_iframe)
+        data = self.consult_boleto(key, False)
+        
+        # self._page.frame_locator(Elemento.id_iframe)
+        iframe = self._page.frame_locator(Elemento.id_iframe)
         reset = False
         
         if data['status'] != "normal":
@@ -193,18 +194,20 @@ class Brasil:
             reset = True
             
         if reset:
-            frame.locator(Elemento.id_btn_nova).click()
-            frame.locator('select[name="tipoConsulta"]').select_option('HC07')
+            btn_novo = iframe.locator(Elemento.id_btn_nova)
+            if btn_novo.is_visible():
+                btn_novo.click()
+                iframe.locator('select[name="tipoConsulta"]').select_option('HC07')
             return message_return(False, mensagem_retorno)
         
-        key_span = frame.locator('#span1')
+        key_span = iframe.locator('#span1')
         while key_span.count() > 0:
             key_span.click()
-            try: frame.locator('#tr41 td a').click()
+            try: iframe.locator('#tr41 td a').click()
             except: pass
         
-        abat_inp = frame.locator('#valorAbatimento')
-        btn_new = frame.locator(Elemento.id_btn_nova)
+        abat_inp = iframe.locator('#valorAbatimento')
+        btn_new = iframe.locator(Elemento.id_btn_nova)
         while True:
             while abat_inp.count() == 0 and btn_new.count() == 0:
                 sleep(0.1)
@@ -213,18 +216,16 @@ class Brasil:
                 btn_new.click()
                 break
             elif abat_inp.count() > 0:
-                frame.locator('#valorTitulo').fill(value)
+                iframe.locator('#valorTitulo').fill(value)
                 abat_inp.fill(disc_value)
-                frame.locator(Elemento.id_btn_ok).click()
+                iframe.locator(Elemento.id_btn_ok).click()
                 
             
-        frame.locator('select[name="tipoConsulta"]').select_option('HC07')
+        iframe.locator('select[name="tipoConsulta"]').select_option('HC07')
         
         self._print('boleto abatido')
         
         return message_return(True, 'boleto abatido')
-        return {'status': True, 'message': 'boleto abatido'}
-        message = frame.locator('.textoErro').all_inner_texts()[-1]
 
     def register_boleto(self, key: str):
         if not key: # Verifica se a chave ou o valor não são compos vazios
@@ -236,63 +237,63 @@ class Brasil:
         
         # Garante que a página será carregada
         self._page.wait_for_selector(Elemento.id_iframe)
-        frame = self._page.frame_locator(Elemento.id_iframe)
+        iframe = self._page.frame_locator(Elemento.id_iframe)
         
         if key.startswith('31'):
-            frame.locator('select[name=agenciaConta]').select_option('17/086') # boletos 31
+            iframe.locator('select[name=agenciaConta]').select_option('17/086') # boletos 31
         elif key.startswith('32'):
-            frame.locator('select[name=agenciaConta]').select_option('17/116') # boletos 32
+            iframe.locator('select[name=agenciaConta]').select_option('17/116') # boletos 32
         
-        frame.locator('select[name=tpModalidade]').select_option('0_COBRANCA SIMPLES')
+        iframe.locator('select[name=tpModalidade]').select_option('0_COBRANCA SIMPLES')
         
-        frame.locator(Elemento.id_btn_ok)
+        iframe.locator(Elemento.id_btn_ok)
         
         
         # campos
         
         # chave do boleto
         if key.startswith('31'):
-            frame.locator('input[name=nossoNumeroCompl]').fill(key.replace('3105655', ''))
+            iframe.locator('input[name=nossoNumeroCompl]').fill(key.replace('3105655', ''))
         elif key.startswith('32'):
-            frame.locator('input[name=nossoNumeroCompl]').fill(key.replace('3266393', ''))
+            iframe.locator('input[name=nossoNumeroCompl]').fill(key.replace('3266393', ''))
         
         # data de emissao (padrão para hoje)
-        frame.locator('input[name=dataEmissaoF]').fill(datetime.today().strftime('%d%m%Y'))
+        iframe.locator('input[name=dataEmissaoF]').fill(datetime.today().strftime('%d%m%Y'))
         
         # data vencimento
-        frame.locator('input[name=dataVencimentoF]').fill('01122025')
+        iframe.locator('input[name=dataVencimentoF]').fill('01122025')
         
         # valor do título
-        frame.locator('input[name=valorTitulo]').fill('15,80')
+        iframe.locator('input[name=valorTitulo]').fill('15,80')
         
         # aceite
-        frame.locator('input[name=tipoAceite]').select_option('N')
+        iframe.locator('input[name=tipoAceite]').select_option('N')
         
         # valor abatimento
-        frame.locator('input[name=valorAbatimentoReg]').fill('')
+        iframe.locator('input[name=valorAbatimentoReg]').fill('')
         
         # especie do titulo
-        frame.locator('input[name=especieTitulo]').select_option('2')
+        iframe.locator('input[name=especieTitulo]').select_option('2')
         
         # numero do titulo (normalmente a referencia)
-        frame.locator('input[name=numeroTituloCedente]').fill('000123312-001')
+        iframe.locator('input[name=numeroTituloCedente]').fill('000123312-001')
         
         # numero do titulo (normalmente a referencia)
-        frame.locator('input[name=numeroTituloCedente]').fill('000123312-001')
+        iframe.locator('input[name=numeroTituloCedente]').fill('000123312-001')
         
         # campo de cpnj/cpf
-        radio_cliente = frame.locator('input[name=indicadorPessoa]')
+        radio_cliente = iframe.locator('input[name=indicadorPessoa]')
         if 'cnpj':
             p = radio_cliente.all_inner_texts().index(' CNPJ ')
             radio_cliente.nth(p).click()
-            frame.locator('input[name=cnpj]').fill('07991297000143')
+            iframe.locator('input[name=cnpj]').fill('07991297000143')
         elif 'cpf':
             p = radio_cliente.all_inner_texts().index(' CPF ')
             radio_cliente.nth(p).click()
-            frame.locator('input[name=cpf]').fill('02510848330')
+            iframe.locator('input[name=cpf]').fill('02510848330')
         
         # nome do cliente
-        frame.locator('input[name=nomeSacado]').fill('Nome do cliente')
+        iframe.locator('input[name=nomeSacado]').fill('Nome do cliente')
         
         
         pass

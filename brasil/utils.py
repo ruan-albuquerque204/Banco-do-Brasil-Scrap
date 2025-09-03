@@ -5,7 +5,7 @@ def filter_error(txt: str):
     else:
         return 'erro'
 
-def message_return(status: str, message: str) -> dict[str, str]:
+def message_return(status: bool, message: str) -> dict[str, str]:
     return {'status': status, 'message': message}
 
 class Elemento:

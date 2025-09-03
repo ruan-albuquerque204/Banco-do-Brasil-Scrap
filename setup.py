@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='brasil',
-    version='0.1.0',
+    version='0.1.2',
     description='realiza procedimentos no website do banco do brasil',
     author='Ruan de Albuquerque Santos',
     author_email='ruanalbuquerque204@gmail.com',
